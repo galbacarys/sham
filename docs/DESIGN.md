@@ -79,6 +79,37 @@ Properties that fall out:
   manifest at the cloned repos and rebuild.
 - **Memory is reviewed in the same PR as the decision it records** — travel with code.
 
+**Canonical storage form and the project root node.** The on-disk `memory.yaml`
+is *flat*, not nested — a `project` header, a `root` header, and a flat `nodes`
+list with `parent` edges. That is the exact row set a later `reconcile`
+re-materializes into the DB:
+
+```yaml
+project: acme
+root: "01HA"                  # id of the project root node
+nodes:
+  - id: "01HA"                # project root node: a container/anchor, not a decision
+    hash: ...
+    label: acme
+    content: ""
+  - id: "01HB"                # a root idea — parents to the project root
+    label: billing
+    content: chose to use Stripe
+    parent: "01HA"
+  - id: "01HC"                # a rationale leaf — parents to its idea
+    label: ""
+    content: idempotent webhooks
+    parent: "01HB"
+```
+
+**The project is a top-level node.** `add-project` scaffolds the project root
+node and `root` names its id; every other node's `parent` chain terminates there.
+An invariant is enforced before any write: **exactly one parentless node (the
+root), and every other `parent` resolves to a node in the file.** This makes
+project membership a *structural* fact — walk up to the root — rather than an
+inference from file location. Projects are also the roots GC walks from, and a
+node's provenance (its project) is recoverable from the graph alone.
+
 ## 4. Node Anatomy — Identity, Freshness, Reachability
 
 Three separate notions, each doing exactly one job. This is the coherent core.
@@ -164,8 +195,9 @@ sham export --project B > b.yaml
   YAML (which stays the source of truth, keeping IDs + hashes correct) and are the primary
   interface for agents. *Maintenance* commands materialize and reconcile the SQLite cache.
 - **Project is implied.** `add-project foo` establishes a default (nearest `.memory/`
-  marker in the tree), so `add`/`get`/`search` need no project flag — one-project working
-  set at a time.
+  marker in the tree), **scaffolds the project root node** all other nodes parent to, and
+  registers the project in the manifest — so `add`/`get`/`search` need no project flag,
+  one-project working set at a time.
 - **`add` returns a node ID** — a stable handle the agent references later (`--node-id`) to
   attach rationale or update in place. **Self-correction / duplicate prevention:** before
   writing, `add` embeds the new node (one embed + a KNN probe) and, if a *semantically

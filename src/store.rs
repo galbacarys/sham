@@ -13,18 +13,20 @@ use std::path::PathBuf;
 
 use rusqlite::{params, Connection};
 
-pub const SCHEMA_VERSION: i64 = 1;
+pub const SCHEMA_VERSION: i64 = 2;
 // Stamped on every fresh init; must track SCHEMA_VERSION so the drift check
 // below behaves (drop+recreate on any other version).
-const STAMP_USER_VERSION: &str = "PRAGMA user_version = 1";
+const STAMP_USER_VERSION: &str = "PRAGMA user_version = 2";
 
 const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS nodes (
     id      TEXT PRIMARY KEY,   -- ULID: stable, sortable (timestamp-prefixed)
+    project TEXT NOT NULL,      -- owning project (structural provenance)
     label   TEXT NOT NULL,      -- short heading
     content TEXT NOT NULL DEFAULT '',
-    parent  TEXT                -- optional parent id (tree layer)
+    parent  TEXT                -- parent id; the project root node's is NULL
 );
+CREATE INDEX IF NOT EXISTS idx_nodes_project ON nodes(project);
 CREATE INDEX IF NOT EXISTS idx_nodes_label ON nodes(label);
 ";
 
@@ -55,12 +57,19 @@ pub fn open_db() -> Connection {
     conn
 }
 
-/// Insert one node. A `None` parent becomes `NULL`, so this single function
-/// serves both an idea node (no parent) and a rationale leaf (parent set).
-pub fn insert_node(conn: &Connection, id: &str, label: &str, content: &str, parent: Option<&str>) {
+/// Insert one node, recording its owning project (provenance). A `None` parent
+/// is the project root node; every other node carries a parent id.
+pub fn insert_node(
+    conn: &Connection,
+    project: &str,
+    id: &str,
+    label: &str,
+    content: &str,
+    parent: Option<&str>,
+) {
     conn.execute(
-        "INSERT INTO nodes (id, label, content, parent) VALUES (?, ?, ?, ?)",
-        params![id, label, content, parent],
+        "INSERT INTO nodes (id, project, label, content, parent) VALUES (?, ?, ?, ?, ?)",
+        params![id, project, label, content, parent],
     )
     .expect("add: insert failed");
 }
@@ -94,13 +103,20 @@ mod tests {
         std::env::set_var("SHAM_DB", &path);
 
         let conn = open_db();
-        insert_node(&conn, "01A", "billing", "chose Stripe", None);
-        insert_node(&conn, "01B", "", "idempotent webhooks", Some("01A"));
+        insert_node(&conn, "acme", "01A", "billing", "chose Stripe", None);
+        insert_node(&conn, "acme", "01B", "", "idempotent webhooks", Some("01A"));
         assert_eq!(
             conn.query_row("SELECT count(*) FROM nodes", [], |r| r.get::<_, i64>(0))
                 .unwrap(),
             2
         );
+        // Provenance is recorded per node.
+        let proj: String = conn
+            .query_row("SELECT project FROM nodes WHERE id = '01B'", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(proj, "acme");
 
         // Simulate a schema bump: corrupt user_version, reopen resets cleanly.
         conn.execute_batch("PRAGMA user_version = 999;").unwrap();

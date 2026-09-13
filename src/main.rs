@@ -131,9 +131,14 @@ fn cmd_add_project(name: &str) -> Result<()> {
                 existing.project
             );
         }
+        // A pre-existing project must already satisfy the tree invariant.
+        existing.check_invariants()?;
     } else {
-        // Creates .memory/ and writes the header (project name, empty nodes).
-        source::write_file(&memory_file, &source::MemoryFile::new(name))?;
+        // Creates .memory/ and writes a valid, freshly-rooted memory file: the
+        // project root node is the single parentless anchor everything parents to.
+        let root_id = Ulid::generate().to_string();
+        let mem = source::MemoryFile::new(name, &root_id);
+        source::write_file(&memory_file, &mem)?;
     }
 
     project::register_project(name, &memory_dir)?;
@@ -162,17 +167,25 @@ fn cmd_add(conn: &Connection, args: AddArgs) -> Result<()> {
         if args.args.len() != 2 {
             bail!("sham add: give <label> <content> (or --node-id <id> <content> to attach)");
         }
-        (args.args[0].clone(), args.args[1].clone(), None)
+        // A new top-level idea parents to the project's root node — no node is
+        // parentless except the root itself.
+        (
+            args.args[0].clone(),
+            args.args[1].clone(),
+            Some(mem.root.clone()),
+        )
     };
 
     let node = source::Node::new(&id, &label, &content, parent);
     source::append_node(&mut mem, node.clone());
+    mem.check_invariants()?; // never emit an invalid tree
     source::write_file(&memory_file, &mem)?;
 
     // Eager ingest keeps the cache fresh so the next `get` needs no separate
     // reconcile: the add *is* the ingest (design section 7).
     store::insert_node(
         conn,
+        &mem.project,
         &node.id,
         &node.label,
         &node.content,

@@ -1,0 +1,27 @@
+project: sham
+root: "01M2E45EVSW5FTVHF892RB3AD8"
+nodes:
+  - id: "01M2E45EVSW5FTVHF892RB3AD8"
+    hash: "2e663cfdd0f5f46a823a094752404ffc304a55c174cc2590b0aa75a485f71186"
+    label: sham
+    content: ""
+  - id: "01M2E45EWA2DZJHABW8BRV8C1D"
+    hash: "0d15e9b0150f9cf83e05672686769e1b952a4ccf0ff4ffb4ef46b25c8aa13097"
+    label: root node identity
+    content: "assign the project root a stable ULID id plus a root: header naming it"
+    parent: "01M2E45EVSW5FTVHF892RB3AD8"
+  - id: "01M2E45EWG2FQZZ4Q6C73KK84H"
+    hash: "9353f1bd92f09ab428fe8a479bc3d84013417a934c06aee6d340e8fbd1048531"
+    label: ""
+    content: stable id makes project membership structural (walk up to the root), not inferred from file location
+    parent: "01M2E45EWA2DZJHABW8BRV8C1D"
+  - id: "01M2E45EWPJ8QSY6KSC9VKX1N8"
+    hash: c101f048c1dc64d32bffde2e08358a1deaaf00d63135c6d4d174c7843c3818ef
+    label: ""
+    content: "root: names the single parentless anchor, so check_invariants enforces exactly one parentless node"
+    parent: "01M2E45EWA2DZJHABW8BRV8C1D"
+  - id: "01M2E45EWW6BK2D9RM1JWV2JC8"
+    hash: bac03271f257c063e0973ba9ec198d3d98f1336bac035e9be7f20ccd7b276d86
+    label: ""
+    content: a stable root id gives GC a root to walk from and the project a citable handle
+    parent: "01M2E45EWA2DZJHABW8BRV8C1D"

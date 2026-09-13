@@ -1,7 +1,7 @@
 [package]
 name = "sham"
 version = "0.1.0"
-description = "minimal shared hierarchical agent memory - thin slice: SQLite add/get"
+description = "Shared, hierarchical, cross-project agent memory: writes decision units (decision + rationale) alongside your code and indexes them in a disposable SQLite cache for retrieval."
 edition = "2021"
 
 [[bin]]
@@ -13,3 +13,4 @@ rusqlite = { version = "0.37", features = ["bundled"] }
 anyhow = "1.0"
 ulid = "3.0.0"
 clap = { version = "4.6", features = ["derive"] }
+dirs = "7.0.0"

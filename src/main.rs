@@ -6,14 +6,10 @@ use clap::{Args, Parser, Subcommand};
 use rusqlite::{Connection, params};
 use ulid::Ulid;
 
-/// shamwow -- shared, hierarchical, cross-project agent memory.
-///
-/// Thin slice (PR #1): a clap-built CLI that mirrors the verb shape of the
-/// design doc (docs/DESIGN.md), with `add` / `get` backed by SQLite. No YAML
-/// source layer, no embeddings, no cross-project search yet.
-///
-/// The store is a disposable SQLite cache at $SHAM_DB, defaulting to
-/// ~/.cache/sham/sham.db. It is fully re-derivable, never precious.
+const SCHEMA_VERSION: i64 = 1;
+// Stamped on every fresh init; must track SCHEMA_VERSION so the drift check
+// below behaves (drop+recreate on any other version).
+const STAMP_USER_VERSION: &str = "PRAGMA user_version = 1";
 
 const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS nodes (
@@ -119,8 +115,22 @@ fn open_db() -> Connection {
         fs::create_dir_all(parent).expect("could not create sham cache dir");
     }
     let conn = Connection::open(db_path).expect("could not open sham.db");
+
+    // The DB is a disposable build cache: detect schema drift via SQLite's
+    // built-in user_version and, on mismatch, re-create the tables from scratch.
+    let version: i64 = conn
+        .pragma_query_value(None, "user_version", |row| Ok(row.get::<_, i64>(0)?))
+        .expect("could not read schema version");
+    if version != SCHEMA_VERSION {
+        conn.execute_batch("DROP TABLE IF EXISTS nodes;")
+            .expect("schema drift: could not reset nodes");
+        conn.execute_batch(SCHEMA).expect("could not init schema");
+        conn.execute_batch(STAMP_USER_VERSION).expect("could not stamp schema version");
+    } else {
+        conn.execute_batch(SCHEMA).expect("could not init schema");
+    }
+
     conn.execute_batch("PRAGMA journal_mode=WAL;").expect("could not set WAL mode");
-    conn.execute_batch(SCHEMA).expect("could not init schema");
     conn
 }
 
@@ -205,9 +215,7 @@ fn db_path() -> PathBuf {
     if let Some(p) = env::var_os("SHAM_DB") {
         return PathBuf::from(p);
     }
-    let mut pb = env::var_os("XDG_CACHE_HOME")
-        .map(|p| PathBuf::from(p))
-        .unwrap_or_else(|| PathBuf::from(env::var_os("HOME").unwrap_or(".".into())));
+    let mut pb = dirs::cache_dir().expect("could not derive the user cache dir");
     pb.push("sham");
     pb.push("sham.db");
     return pb;

@@ -1,0 +1,15 @@
+[package]
+name = "sham"
+version = "0.1.0"
+description = "minimal shared hierarchical agent memory - thin slice: SQLite add/get"
+edition = "2021"
+
+[[bin]]
+name = "sham"
+path = "src/main.rs"
+
+[dependencies]
+rusqlite = { version = "0.37", features = ["bundled"] }
+anyhow = "1.0"
+ulid = "3.0.0"
+clap = { version = "4.6", features = ["derive"] }

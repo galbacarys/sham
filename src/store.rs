@@ -13,10 +13,10 @@ use std::path::PathBuf;
 
 use rusqlite::{params, Connection};
 
+/// Schema version of the derived cache. The `PRAGMA user_version` we stamp on
+/// fresh init is derived from this single constant below, so the drift check
+/// (drop+recreate on any mismatch) can never go stale by hand.
 pub const SCHEMA_VERSION: i64 = 2;
-// Stamped on every fresh init; must track SCHEMA_VERSION so the drift check
-// below behaves (drop+recreate on any other version).
-const STAMP_USER_VERSION: &str = "PRAGMA user_version = 2";
 
 const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS nodes (
@@ -46,7 +46,7 @@ pub fn open_db() -> Connection {
         conn.execute_batch("DROP TABLE IF EXISTS nodes;")
             .expect("schema drift: could not reset nodes");
         conn.execute_batch(SCHEMA).expect("could not init schema");
-        conn.execute_batch(STAMP_USER_VERSION)
+        conn.execute_batch(&format!("PRAGMA user_version = {SCHEMA_VERSION}"))
             .expect("could not stamp schema version");
     } else {
         conn.execute_batch(SCHEMA).expect("could not init schema");

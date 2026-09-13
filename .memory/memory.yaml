@@ -85,3 +85,8 @@ nodes:
     label: ""
     content: "discoveries skip the empirical/normative outcome lifecycle: they are confirmed or superseded, never validated; retrieval labels them provisional with provenance"
     parent: "01M2E707TRJ190JMBBS6VXDP6H"
+  - id: "01M2E9BNKN7187C0XX5J70C7T0"
+    hash: "4fadcd1499bbdf44c72944efa57f48d069e2b5ff7aa1dabd3a582f5cbd1eda18"
+    label: ""
+    content: "refined by reviewer: one coarse author-set kind enum on the node - empirical | normative | discovery - reusing the existing kind field instead of a separate discovery mechanism; discovery sits outside the outcome/validated lifecycle (confirmed or superseded, never validated) and search tags it provisional; default stays empirical for the common we-decided case"
+    parent: "01M2E707TRJ190JMBBS6VXDP6H"

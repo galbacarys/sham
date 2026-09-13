@@ -1,0 +1,18 @@
+# Rust
+/target
+
+# Local sham state (disposable cache — never committed)
+*.db
+*.db-wal
+*.db-shm
+.cache/
+.memory/scratch/
+
+# Editor / OS
+.DS_Store
+*.swp
+*.swo
+
+# Env / secrets
+.env
+*.local

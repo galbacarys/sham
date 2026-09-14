@@ -25,3 +25,68 @@ nodes:
     label: ""
     content: a stable root id gives GC a root to walk from and the project a citable handle
     parent: "01M2E45EWA2DZJHABW8BRV8C1D"
+  - id: "01M2E6SEP3E2KCYN8M22K24ADX"
+    hash: "894638e272fbf48a981d3f77ba3a9474171be07da1e4276d8c058088b6ac2044"
+    label: reconcile/build slice scoping
+    content: reconcile and build materialize the node graph (id/project/label/content/parent) + GC; embedding re-invalidation is deferred to the embeddings slice
+    parent: "01M2E45EVSW5FTVHF892RB3AD8"
+  - id: "01M2E6SEPB6JQ3KT51XS6JF4MG"
+    hash: "64af0b2963338c5ebeb312ea40c6631d5ffa6ac306eea28bd42f48d434168acf"
+    label: ""
+    content: no embedding backend exists yet, so re-embed changed units has nothing to do; the honest slice is YAML -> node-graph materialization + reachability GC
+    parent: "01M2E6SEP3E2KCYN8M22K24ADX"
+  - id: "01M2E6SEPJ6PHC4CHCG4K93HHH"
+    hash: "2e1e31ba660815cb4c28255da094488653f0dee3b1bca8b10ac59302a3d3f9b4"
+    label: ""
+    content: upsert on the stable id is idempotent, so reconcile is re-runnable and build is reconcile-from-empty
+    parent: "01M2E6SEP3E2KCYN8M22K24ADX"
+  - id: "01M2E6SEPT6V3XN4Z6A3ZX8144"
+    hash: dd81ead195d7d0ea61f997045c81d23088394272930e73a329c050e946316274
+    label: ""
+    content: "schema stays v2 (no per-node hash column): node-graph caching needs only id/label/content/parent; embedding invalidation rides this same upsert path once the search slice lands"
+    parent: "01M2E6SEP3E2KCYN8M22K24ADX"
+  - id: "01M2E707SXASD2GCMS6FMKHTB6"
+    hash: "2634d87cc3911a97a8686bd2da6a522a84bc768e07310287168a9158fcb5f336"
+    label: "git worktrees: anchor manifest identity to the parent repo, not the worktree"
+    content: resolve a project's canonical root and manifest entry from the parent git repo (git rev-parse --git-common-dir), not the worktree cwd, so every worktree of a repo shares one stable project identity and the manifest never records an ephemeral worktree path
+    parent: "01M2E45EVSW5FTVHF892RB3AD8"
+  - id: "01M2E707T5B89B6RCWXX2H05X6"
+    hash: bea337bc582f36b13bffd73fafc7064f32b2d9e8f793d02448d0d35cd717dd77
+    label: ""
+    content: authoring still targets the cwd worktree's .memory so branch memory is reviewed with the PR; reconcile (periodic/CI) reads the committed parent-repo state; the two can differ
+    parent: "01M2E707SXASD2GCMS6FMKHTB6"
+  - id: "01M2E707TBGHT3DX32ZFJ2M2SE"
+    hash: a39170b5b0e958de399efc53eb92fb14dbfc3ed59d59a2687b66d0e85db9e2cf
+    label: ""
+    content: "the sham manifest entry went stale when the PR #2 worktree (sham-slice2) was removed; keying on the parent repo root makes registration survive worktree create/delete"
+    parent: "01M2E707SXASD2GCMS6FMKHTB6"
+  - id: "01M2E707TJB7X0YTAGV96JMNFW"
+    hash: e5bb7d0187ce6da5d3fe3e771e29f5cd4bd50eadfa056d23a25bd02f8cc62df0
+    label: ""
+    content: "gives reconcile a stable handle for freshly-cloned repos: same repo root implies same project, so a new clone resolves deterministically"
+    parent: "01M2E707SXASD2GCMS6FMKHTB6"
+  - id: "01M2E707TRJ190JMBBS6VXDP6H"
+    hash: "1be7d638f7e5062bc84a7189d04a820236dee75d560d6aa7d1b3963a489a66c5"
+    label: node kind for discoveries, distinct from decisions
+    content: recorded observations/learnings are not decisions (no chosen course, nothing to validate) yet are still worth surfacing; give nodes a coarse author-set kind so discoveries are retrieved as provisional, never decision-weight
+    parent: "01M2E45EVSW5FTVHF892RB3AD8"
+  - id: "01M2E707V0ZJ7EJA2JCRBA7DD8"
+    hash: b491d530cbfc5db50014bdded3026e66d6e19cafbe7c5a6784b9ce0b88782c8a
+    label: ""
+    content: many sham-worthy items are we-learned-X rather than we-chose-X-and-why; forcing them into decision shape overclaims authority (the anti-attractor risk)
+    parent: "01M2E707TRJ190JMBBS6VXDP6H"
+  - id: "01M2E707V7VVNR638QJK0B4TC3"
+    hash: fb95d62562bd404c88f7f25274afa802021bea4b82ba2f7aaf778b802e8d4b6b
+    label: ""
+    content: "an author-set kind is first-class structure, NOT the section-6 runtime classifier that guesses idea-vs-detail from shape: the writer knows it is a discovery at write time"
+    parent: "01M2E707TRJ190JMBBS6VXDP6H"
+  - id: "01M2E707VDRA0KQRWGPZ8XSS4Z"
+    hash: ba052239d9d2e19ab07232b834ccb1555e5dfc86027a3bd5139c14f2967519be
+    label: ""
+    content: "discoveries skip the empirical/normative outcome lifecycle: they are confirmed or superseded, never validated; retrieval labels them provisional with provenance"
+    parent: "01M2E707TRJ190JMBBS6VXDP6H"
+  - id: "01M2E9BNKN7187C0XX5J70C7T0"
+    hash: "4fadcd1499bbdf44c72944efa57f48d069e2b5ff7aa1dabd3a582f5cbd1eda18"
+    label: ""
+    content: "refined by reviewer: one coarse author-set kind enum on the node - empirical | normative | discovery - reusing the existing kind field instead of a separate discovery mechanism; discovery sits outside the outcome/validated lifecycle (confirmed or superseded, never validated) and search tags it provisional; default stays empirical for the common we-decided case"
+    parent: "01M2E707TRJ190JMBBS6VXDP6H"

@@ -100,8 +100,8 @@ fn run(args: Cli) -> Result<()> {
         Commands::Search { query } => not_sliced(format!("search {query}")),
         Commands::Supersede { id, text } => not_sliced(format!("supersede {id} {text}")),
         Commands::Rm { id } => not_sliced(format!("rm {id}")),
-        Commands::Reconcile => not_sliced("reconcile".into()),
-        Commands::Build => not_sliced("build".into()),
+        Commands::Reconcile => cmd_reconcile(),
+        Commands::Build => cmd_build(),
         Commands::Export { project } => cmd_export(&project),
     }
 }
@@ -208,6 +208,68 @@ fn cmd_export(name: &str) -> Result<()> {
     let memory_file = proj.path.join(project::MEMORY_FILE_NAME);
     let mem = source::read_file(&memory_file)?;
     print!("{}", source::to_yaml(&mem));
+    Ok(())
+}
+
+// ---- maintenance -----------------------------------------------------------
+
+/// Shared core for `reconcile`/`build`: materialize every registered project's
+/// memory YAML into the cache (upsert + GC), running inside the caller's
+/// *single* transaction so a failure mid-run rolls back the whole pass. Returns
+/// (project_count, node_count, pruned_count).
+fn materialize_all(cursor: &Connection) -> Result<(usize, usize, usize)> {
+    let cfg = project::read_config()?;
+    let mut projects = 0usize;
+    let mut nodes_total = 0usize;
+    let mut pruned = 0usize;
+    for entry in &cfg.projects {
+        let memory_file = entry.path.join(project::MEMORY_FILE_NAME);
+        let mem = source::read_file(&memory_file)?;
+        mem.check_invariants()?; // never materialize an invalid tree
+        let live: Vec<String> = mem.nodes.iter().map(|n| n.id.clone()).collect();
+        for node in &mem.nodes {
+            store::upsert_node(
+                cursor,
+                &mem.project,
+                &node.id,
+                &node.label,
+                &node.content,
+                node.parent.as_deref(),
+            );
+        }
+        nodes_total += mem.nodes.len();
+        pruned += store::prune_project(cursor, &mem.project, &live)?;
+        projects += 1;
+    }
+    Ok((projects, nodes_total, pruned))
+}
+
+/// `sham reconcile` — incremental: upsert changed nodes + GC unreachable ids,
+/// atomically across every registered project (design section 7).
+fn cmd_reconcile() -> Result<()> {
+    let mut conn = store::open_db();
+    let tx = conn.transaction()?;
+    let (projects, nodes, pruned) = materialize_all(&tx)?;
+    tx.commit()?;
+    println!(
+        "reconcile: {} project(s), {} node(s) materialized, {} pruned",
+        projects, nodes, pruned
+    );
+    Ok(())
+}
+
+/// `sham build` — explicit full rebuild: wipe the cache, then re-materialize
+/// every project from source (escape hatch vs lazy first-use).
+fn cmd_build() -> Result<()> {
+    let mut conn = store::open_db();
+    let tx = conn.transaction()?;
+    store::delete_all(&tx);
+    let (projects, nodes, _) = materialize_all(&tx)?;
+    tx.commit()?;
+    println!(
+        "build: full rebuild from {} project(s) -> {} node(s) cached",
+        projects, nodes
+    );
     Ok(())
 }
 
